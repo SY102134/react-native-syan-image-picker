@@ -21,10 +21,13 @@ import com.luck.picture.lib.PictureSelector;
 import com.luck.picture.lib.compress.Luban;
 import com.luck.picture.lib.config.PictureConfig;
 import com.luck.picture.lib.config.PictureMimeType;
+import com.luck.picture.lib.tools.PictureFileUtils;
 import com.luck.picture.lib.entity.LocalMedia;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.io.File;
+import android.os.Environment;
 
 public class RNSyanImagePickerModule extends ReactContextBaseJavaModule {
 
@@ -63,6 +66,65 @@ public class RNSyanImagePickerModule extends ReactContextBaseJavaModule {
         this.openImagePicker(options);
     }
 
+    @ReactMethod
+    public void trashCacheFile(Promise promise) {
+
+        String cachePath = getDiskCacheDir(this.reactContext);
+
+        File cacheDir = new File(cachePath);
+
+        File compressDir = new File(cachePath + "/compress");
+        File lubanDir = new File(cachePath + "/luban_disk_cache");
+
+        if (cacheDir != null) {
+            File[] files = cacheDir.listFiles();
+            for (File file : files) {
+                if (file.isFile())
+                    file.delete();
+            }
+        }
+
+        if (compressDir != null) {
+            File[] files = compressDir.listFiles();
+            if (files != null){
+                for (File file : files) {
+                    if (file.isFile())
+                        file.delete();
+                }
+            }
+        }
+
+        if (lubanDir != null) {
+            File[] files = lubanDir.listFiles();
+            if (files != null){
+                for (File file : files) {
+                    if (file.isFile())
+                        file.delete();
+                }
+            }
+        }
+    }
+
+    public static String getDiskCacheDir(ReactApplicationContext context) {
+        String cachePath = null;
+        if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState())
+                || !Environment.isExternalStorageRemovable()) {
+            cachePath = context.getExternalCacheDir().getPath();
+        } else {
+            cachePath = context.getCacheDir().getPath();
+        }
+        return cachePath;
+    }
+
+    private String getCompressImagePath() {
+        String path = getDiskCacheDir(this.reactContext) + "/compress/";
+        File file = new File(path);
+        if (file.mkdirs()) {
+            return path;
+        }
+        return path;
+    }
+
     /**
      * 打开相册选择
      *
@@ -72,9 +134,13 @@ public class RNSyanImagePickerModule extends ReactContextBaseJavaModule {
         int imageCount = options.getInt("imageCount");
         boolean isCamera = options.getBoolean("isCamera");
         boolean isCrop = options.getBoolean("isCrop");
+        boolean dragCropBox = options.getBoolean("dragCropBox");
+        int RatioW = options.getInt("RatioW");
+        int RatioH = options.getInt("RatioH");
         int CropW = options.getInt("CropW");
         int CropH = options.getInt("CropH");
         boolean isGif = options.getBoolean("isGif");
+        String cameraPath = options.getString("cameraPath");
         boolean showCropCircle = options.getBoolean("showCropCircle");
         boolean showCropFrame = options.getBoolean("showCropFrame");
         boolean showCropGrid = options.getBoolean("showCropGrid");
@@ -96,16 +162,18 @@ public class RNSyanImagePickerModule extends ReactContextBaseJavaModule {
             .previewVideo(false)// 是否可预览视频 true or false
             .enablePreviewAudio(false) // 是否可播放音频 true or false
             .isCamera(isCamera)// 是否显示拍照按钮 true or false
-            .imageFormat(PictureMimeType.PNG)// 拍照保存图片格式后缀,默认jpeg
+            // .imageFormat(PictureMimeType.PNG)// 拍照保存图片格式后缀,默认jpeg
             .isZoomAnim(true)// 图片列表点击 缩放效果 默认true
             .sizeMultiplier(0.5f)// glide 加载图片大小 0~1之间 如设置 .glideOverride()无效
+            .setOutputCameraPath(cameraPath)
             .enableCrop(isCrop)// 是否裁剪 true or false
             .compress(true)// 是否压缩 true or false
+            .compressSavePath(getCompressImagePath())
             .glideOverride(160, 160)// int glide 加载宽高，越小图片列表越流畅，但会影响列表图片浏览的清晰度
-            .withAspectRatio(CropW, CropH)// int 裁剪比例 如16:9 3:2 3:4 1:1 可自定义
+            .withAspectRatio(RatioW, RatioH)// int 裁剪比例 如16:9 3:2 3:4 1:1 可自定义
             .hideBottomControls(isCrop)// 是否显示uCrop工具栏，默认不显示 true or false
             .isGif(isGif)// 是否显示gif图片 true or false
-            .freeStyleCropEnabled(true)// 裁剪框是否可拖拽 true or false
+            .freeStyleCropEnabled(dragCropBox)// 裁剪框是否可拖拽 true or false
             .circleDimmedLayer(showCropCircle)// 是否圆形裁剪 true or false
             .showCropFrame(showCropFrame)// 是否显示裁剪矩形边框 圆形裁剪时建议设为false   true or false
             .showCropGrid(showCropGrid)// 是否显示裁剪矩形网格 圆形裁剪时建议设为false    true or false
@@ -113,6 +181,7 @@ public class RNSyanImagePickerModule extends ReactContextBaseJavaModule {
             .cropCompressQuality(90)// 裁剪压缩质量 默认90 int
             .minimumCompressSize(100)// 小于100kb的图片不压缩 
             .synOrAsy(true)//同步true或异步false 压缩 默认同步
+            .cropWH(CropW, CropH)
             .rotateEnabled(true) // 裁剪是否可旋转图片 true or false
             .scaleEnabled(true)// 裁剪是否可放大缩小图片 true or false
             .videoQuality(0)// 视频录制质量 0 or 1 int
